@@ -1,0 +1,696 @@
+<#include "/common/header.html"/>
+<!-- ================== BEGIN PAGE LEVEL STYLE ================== -->
+	<link href="/plugins/DataTables/media/css/dataTables.bootstrap.min.css" rel="stylesheet" />
+	<link href="/plugins/DataTables/extensions/Responsive/css/responsive.bootstrap.min.css" rel="stylesheet" />
+	<!-- ================== END PAGE LEVEL STYLE ================== -->
+<!-- ================== BEGIN PAGE LEVEL JS ================== -->
+	<script src="/plugins/DataTables/media/js/jquery.dataTables.js"></script>
+	<script src="/plugins/DataTables/media/js/dataTables.bootstrap.min.js"></script>
+	<script src="/plugins/DataTables/extensions/Responsive/js/dataTables.responsive.min.js"></script>
+	<script src="/js/apps.min.js"></script>
+	<!-- ================== END PAGE LEVEL JS ================== -->
+
+    <script src="/js/xlsx.core.min.js"></script>
+<!-- begin #content -->
+<div id="content" class="content">
+	<!-- begin breadcrumb -->
+	<ol class="breadcrumb pull-right">
+		<li><a href="usersPage">主页</a></li>
+	</ol>
+	<!-- end breadcrumb -->
+	<!-- begin page-header -->
+	<h1 class="page-header">用户管理</h1>
+	<!-- end page-header -->
+
+	<!-- begin row -->
+	<div class="row">
+	    <!-- begin col-12 -->
+	    <div class="col-md-12">
+	        <!-- begin panel -->
+                    <div class="panel panel-inverse">
+                        <div class="panel-heading">
+                            <h4 class="panel-title">数据列表</h4>
+                        </div>
+                        <div class="panel-body" style="width: 100%">
+                           <form class="form-inline">
+		                        <div class="form-group">
+		                            <label >编号:</label>
+		                            <input type="text" class="form-control" id="id-search" placeholder="编号:"/>
+		                        </div>
+		                        <div class="form-group">
+		                            <label >名称:</label>
+		                            <input type="text" class="form-control" id="name-search" placeholder="名称"/>
+		                        </div>
+                               <div class="form-group">
+                                   <label class="control-label">专业基地:</label>
+                                   <select id="baseName-search" class="arrturnBase form-control">
+                                       <option value=''>全部</option>
+                                       <#if bases?? && bases?size gt 0>
+                                           <#list bases as base>
+                                               <option value='${base.value}'>${base.value}</option>
+                                           </#list>
+                                       </#if>
+                                   </select>
+                               </div>
+                               <div class="form-group">
+                                   <label class="control-label">科室:</label>
+                                   <select id="roomName-search" class="arrturnRoom form-control">
+                                       <option value='' selected>全部</option>
+                                       <#if rooms?? && rooms?size gt 0>
+                                           <#list rooms as room>
+                                               <option value='${room.value}'>${room.value}</option>
+                                           </#list>
+                                       </#if>
+                                   </select>
+                               </div>
+
+		                        <div class="form-group">
+		                            <label class="control-label">身份:</label>
+		                            <select id="identityId-search"  class="form-control">
+		                                <option value="">全部</option>
+		                                <option value="1">老师</option>
+		                                <option value="2">学生</option>
+		                            </select>
+		                        </div>
+		                        <button type="button"  onclick="search();" class="btn btn-primary">查询</button>
+
+	                            <@shiro.hasPermission name="/users/saveUserRoles">
+		                        	<button type="button"  onclick="allotRole();" class="btn btn-info" style="float: right; margin-right: 1px;">
+                                        分配角色</button>
+                               <button type="button"  onclick="$('#userItemModal').modal()" class="btn btn-primary" style="float: right; margin-right: 1px;" >导入</button>
+							    </@shiro.hasPermission>
+							    <@shiro.hasPermission name="/users/delete">
+		                        	<button type="button"  onclick="delByID();" class="btn btn-info" style="float: right; margin-right: 1px;">删除</button>
+							    </@shiro.hasPermission>
+							    <@shiro.hasPermission name="/users/add">
+		                       		<button type="button"  onclick="$('#addUser').modal();" class="btn btn-info" style="float: right; margin-right: 1px;">新增</button>
+							    </@shiro.hasPermission>
+
+                                <@shiro.hasPermission name="/users/add">
+                                    <button type="button"  onclick="$('#addUser').modal();" class="btn btn-info" style="float: right; margin-right: 1px;">新增</button>
+                                </@shiro.hasPermission>
+		                    </form>
+                            <table id="datatable" class="table table-striped table-bordered">
+                                <thead>
+                                    <tr>
+		                                <th>
+		                                    <input type="checkbox" class="checkall" />
+		                                </th>
+		                                <th>ID</th>
+		                                <th>用户名</th>
+		                                <th>真实姓名</th>
+		                                <th>基地</th>
+		                                <th>科室</th>
+		                            </tr>
+                                </thead>
+                                <tbody>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                    <!-- end panel -->
+                </div>
+                <!-- end col-12 -->
+            </div>
+            <!-- end row -->
+</div>
+<!-- end #content -->
+
+
+<!--添加弹框-->
+<div class="modal fade" id="userItemModal" tabindex="-1" role="dialog" aria-labelledby="userItemLabel">
+    <div class="modal-dialog" role="document">
+        <div class="modal-content">
+            <div class="modal-header">
+                <button type="button" class="close" data-dismiss="modal" aria-label="Close"><span aria-hidden="true">&times;</span>
+                </button>
+                <h4 class="modal-title" id="userItemLabel">批量导入用户</h4>
+            </div>
+            <div class="modal-body">
+                <form>
+                    <input type="hidden" id="questionId" name="questionId"/>
+                    <div style="display:inline-block;position:relative;overflow: hidden;vertical-align:middle">
+                        <button class="btn btn-info">导入</button>
+                        <input type="file" id="import_useritem_file"
+                               style="position:absolute;top:0;left:0;font-size:34px; opacity:0"
+                               accept="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet, application/vnd.ms-excel"/>
+                    </div>
+                    <span id="import_useritem_filename">未导入文件</span>
+                    <a class="btn btn-inverse pull-right" href="/file/download?fileName=userMoBan.xlsx">用户模版</a>
+                </form>
+                <table id="userItemTable" class="table table-striped table-bordered">
+                    <thead>
+                    <tr>
+                        <th>登录名</th>
+                        <th>编号</th>
+                        <th>姓名</th>
+                        <th>密码</th>
+                        <th>基地</th>
+                        <th>科室</th>
+                        <th>身份</th>
+                        <th>年级</th>
+                        <th>培训年限</th>
+                    </tr>
+                    </thead>
+                    <tbody>
+                    </tbody>
+                </table>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-default" data-dismiss="modal">关闭</button>
+                <button type="button" onclick="saveUserItems();" class="btn btn-success">保存</button>
+            </div>
+        </div>
+    </div>
+</div>
+<!--/批量导入项-->
+
+
+<!--弹框-->
+<div class="modal fade bs-example-modal-sm"  id="selectRole" tabindex="-1" role="dialog" aria-labelledby="selectRoleLabel">
+    <div class="modal-dialog modal-sm" role="document">
+        <div class="modal-content">
+            <div class="modal-header">
+                <button type="button" class="close" data-dismiss="modal" aria-label="Close"><span aria-hidden="true">&times;</span></button>
+                <h4 class="modal-title" id="selectRoleLabel">分配角色</h4>
+            </div>
+            <div class="modal-body">
+                <form id="boxRoleForm" >
+                    <!--<div class='checkbox'>
+                    <label><input type='checkbox' id=''/>First One</label>
+                </div>
+                    -->
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-default" data-dismiss="modal">Close</button>
+                <button type="button" onclick="saveUserRoles();" class="btn btn-primary">Save</button>
+            </div>
+        </div>
+    </div>
+</div>
+<!--/弹框-->
+
+<!--添加弹框-->
+<div class="modal fade" id="addUser" tabindex="-1" role="dialog" aria-labelledby="addroleLabel">
+    <div class="modal-dialog" role="document">
+        <div class="modal-content">
+            <div class="modal-header">
+                <button type="button" class="close" data-dismiss="modal" aria-label="Close"><span aria-hidden="true">&times;</span></button>
+                <h4 class="modal-title" id="addroleLabel">添加用户</h4>
+            </div>
+            <div class="modal-body">
+                <form id="userForm">
+                    <div class="form-group">
+                		<input type="hidden" name="identityId" value="1"/>
+                        <label  class="control-label">用户名:</label>
+                        <input type="text" class="form-control" name="loginName" id="loginName" placeholder="请输入用户名"/>
+                        <span class="btn-action single glyphicons circle_question_mark" data-toggle="tooltip" data-placement="top" data-original-title="必填"><i></i></span>
+                    </div>
+                    <div class="form-group">
+                		<input type="hidden" name="identityId" value="1"/>
+                        <label  class="control-label">真实姓名:</label>
+                        <input type="text" class="form-control" name="realName" id="realName" placeholder="请输入真实姓名"/>
+                        <span class="btn-action single glyphicons circle_question_mark" data-toggle="tooltip" data-placement="top" data-original-title="必填"><i></i></span>
+                    </div>
+                    <div class="form-group">
+                        <label  class="control-label">密码:</label>
+                        <input type="password" class="form-control" id="userPwd" name="userPwd"  placeholder="请输入密码 6位以上"/>
+                    </div>
+                    <div class="form-group">
+                        <label class="control-label">专业基地:</label>
+                        <select  name="baseName" id="baseName" class="form-control">
+                            <option value='' >全部</option>
+                            <#if bases?? && bases?size gt 0>
+                                <#list bases as base>
+                                    <option value='${base.value}'>${base.value}</option>
+                                </#list>
+                            </#if>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label class="control-label">科室:</label>
+                        <select name="roomName" id="roomName"  class="arrturnRoom form-control">
+                            <option value='' >全部</option>
+                            <#if rooms?? && rooms?size gt 0>
+                                <#list rooms as room>
+                                    <option value='${room.value}'>${room.value}</option>
+                                </#list>
+                            </#if>
+                        </select>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-default" data-dismiss="modal">Close</button>
+                <button type="button" onclick="addUser();" class="btn btn-primary">Save</button>
+            </div>
+        </div>
+    </div>
+</div>
+<!--/添加弹框-->
+
+<script type="text/javascript">
+	$(".checkall").click(function () {
+	    var check = $(this).prop("checked");
+	    $(".checkchild").prop("checked", check);
+	});
+
+	var table;
+    $(document).ready(function() {
+        table = $('#datatable').DataTable( {
+        	"dom": 'rtlip',
+        	"ordering": false,
+            "searching" : false,
+            "sPaginationType": "full_numbers",
+            "pageLength": 10,
+            "serverSide": true,//开启服务器模式，使用服务器端处理配置datatable
+            "processing": true,//开启读取服务器数据时显示正在加载中……特别是大数据量的时候，开启此功能比较好
+            "language": {
+                "Processing": "正在加载中......",
+                "zeroRecords": "对不起，查询不到相关数据！",
+                "emptyTable": "表中无数据存在！",
+                "lengthMenu": "显示 _MENU_ 条记录",
+                "infoFiltered": "数据表中共为 _MAX_ 条记录",
+                "info": '_START_ 到 _END_ 条,共 _TOTAL_ 条',
+                "paginate": {
+                    "first": "首页",
+                    "previous": "上一页",
+                    "next": "下一页",
+                    "last": "末页"
+                }
+             },
+            ajax : function(data, callback, settings) {
+                //封装请求参数
+                var param = getQueryCondition(data);
+                $.ajax({
+                    type: "GET",
+                    url: 'users',
+                    cache : false,  //禁用缓存
+                    data: param,    //传入已封装的参数
+                    dataType: "json",
+                    success: function(result) {
+                        //封装返回数据  如果参数相同，可以直接返回result ，此处作为学习，先这么写了。
+                        var returnData = {};
+                        returnData.draw = result.draw;//这里直接自行返回了draw计数器,应该由后台返回
+                        returnData.recordsTotal = result.recordsTotal;//总记录数
+                        returnData.recordsFiltered = result.recordsFiltered;//后台不实现过滤功能，每次查询均视作全部结果
+                        returnData.data = result.data;
+                        //调用DataTables提供的callback方法，代表数据已封装完成并传回DataTables进行渲染
+                        //此时的数据需确保正确无误，异常判断应在执行此回调前自行处理完毕
+                        callback(returnData);
+
+                    },
+                    error: function(XMLHttpRequest, textStatus, errorThrown) {
+                        alert("查询失败");
+                    }
+                });
+            },
+            "columns": [
+                {
+                    "sClass": "text-center",
+                    "data": "id",
+                    "render": function (data, type, full, meta) {
+                        return '<input type="checkbox"  class="checkchild"  value="' + data + '" />';
+                    },
+                },
+                { "data": "id" },
+                { "data": "loginName" },
+                { "data": "realName" },
+                { "data": "baseName" },
+                { "data": "roomName" }
+            ]
+
+        } );
+    } );
+
+    function search(){
+        table.ajax.reload();
+    }
+
+    var baseList = [];
+        //初始化将测试集包含的用例存在数组里面
+        <#if bases??>
+            <#list bases as item>
+                baseList.push("${item.value}")
+            </#list>
+        </#if>
+
+    var roomList =[];
+    <#if rooms??>
+    <#list rooms as room>
+    roomList.push("${room.value}")
+    </#list>
+    </#if>
+    function getQueryCondition(data){
+        var param = {};
+        //组装排序参数
+        param.loginName = $("#id-search").val();//查询条件
+        param.realName = $("#name-search").val();//查询条件
+        param.identityId = $("#identityId-search").val();//查询条件
+        param.baseName = $("#baseName-search").val();//查询条件
+        param.roomName = $("#roomName-search").val();//查询条件
+        //组装分页参数
+        param.start = data.start;
+        param.length = data.length;
+        param.draw = data.draw;
+        return param;
+    }
+
+    //导入考生,js读取excel内容
+    $('#import_useritem_file').change(function (e) {
+        $('#import_useritem_filename').html(this.files[0].name);
+        var files = e.target.files;
+        var fileReader = new FileReader();
+        fileReader.onload = function (ev) {
+            try {
+                var data = ev.target.result,
+                    workbook = XLSX.read(data, {
+                        type: 'binary'
+                    }), // 以二进制流方式读取得到整份excel表格对象
+                    userItems = []; // 存储获取到的数据
+            } catch (e) {
+                console.log('文件类型不正确');
+                console.log(e);
+                return;
+            }
+
+            // 表格的表格范围，可用于判断表头是否数量是否正确
+            // 遍历每张表读取
+            for (var sheet in workbook.Sheets) {
+                if (workbook.Sheets.hasOwnProperty(sheet)) {
+                    userItems = userItems.concat(XLSX.utils.sheet_to_json(workbook.Sheets[sheet]));
+                    break; // 如果只取第一张表，就取消注释这行
+                }
+            }
+
+            console.log(userItems);
+            if (userItems != null && userItems.length > 0) {
+                if (userItems[0].loginName == null || userItems[0].real_name == null) {
+                    layer.msg('excel格式不正确！');
+                    return;
+                }
+                var html = '';
+                var flag = true;
+                var num =1;
+                for (var i in userItems) {  //序号校验
+                    if (userItems[i].loginName == null || userItems[i].loginName == '') {
+                        layer.msg('导入失败，登录名不能为空！');
+                        flag = false;
+                        return;
+                    }
+                    //分值校验
+                    if (userItems[i].real_name == null || userItems[i].real_name == '') {
+                        layer.msg('导入失败，第'+num+'个用户真实姓名分值不能为空！');
+                        flag = false;
+                        return;
+                    }
+                    //分值校验
+                    if (userItems[i].user_pwd == null || userItems[i].user_pwd == '') {
+                        layer.msg('导入失败，第'+num+'个用户密码不能为空！');
+                        flag = false;
+                        return;
+                    }
+                    if ( userItems[i].baseName == null || userItems[i].baseName == '' ||  !isContains(baseList, userItems[i].baseName )) {
+                        layer.msg('导入失败，第'+num+'个用户基地不在数据库中，请修改！');
+                        flag = false;
+                        return;
+                    }
+                    if (userItems[i].identity_id == null || userItems[i].identity_id == '') {
+                        layer.msg('导入失败，第'+num+'个用户身份类型不能为空，请修改！');
+                        flag = false;
+                        return;
+                    }else  if ( userItems[i].identity_id ==1 ){
+                        if (userItems[i].roomName == null || userItems[i].roomName == '' || !isContains(roomList,userItems[i].roomName ) ) {
+                            layer.msg('导入失败，第'+num+'个老师的科室名字不存在，请修改 ');
+                            flag = false;
+                            return;
+                    }
+
+                    }//分值校验
+
+                    html += '<tr><td>' + userItems[i].loginName + '</td><td>' +
+                        userItems[i].userNum + '</td><td>' +
+                        userItems[i].real_name + '</td><td>' +
+                        userItems[i].user_pwd + '</td><td>' +
+                        userItems[i].baseName + '</td><td>' +
+                        userItems[i].roomName + '</td><td>' +
+                        userItems[i].identity_id + '</td><td>' +
+                        userItems[i].grade + '</td><td>' +
+                        userItems[i].trainTime + '</td></tr>';
+                    num=num+1;
+                }
+                if (flag) {
+                    $('#userItemTable tbody').empty().append(html);
+                }
+            }
+        };
+
+        // 以二进制方式打开文件
+        fileReader.readAsBinaryString(files[0]);
+    });
+
+
+    //保存
+    function saveUserItems() {
+        var param = {};
+        var loginNames = [];
+        var userNums = [];
+        var real_names = [];
+        var user_pwds = [];
+        var baseNames = [];
+        var roomNames = [];
+        var identity_ids = [];
+        var grades = [];
+        var trainTimes = [];
+        var flag = true;
+        $('#userItemTable tbody tr').each(function () {
+            var loginName = $(this).find('td:eq(0)').text().trim();
+            var userNum = $(this).find('td:eq(1)').text().trim();
+            var real_name = $(this).find('td:eq(2)').text().trim();
+            var user_pwd = $(this).find('td:eq(3)').text().trim();
+            var baseName = $(this).find('td:eq(4)').text().trim();
+            var roomName = $(this).find('td:eq(5)').text().trim();
+            var identity_id = $(this).find('td:eq(6)').text().trim();
+            var grade = $(this).find('td:eq(7)').text().trim();
+            var trainTime = $(this).find('td:eq(8)').text().trim();
+            if (loginName == null || loginName == '') {
+                layer.msg('用户名不能为空！');
+                flag = false;
+                return;
+            }
+            if (real_name == null || real_name == '') {
+                layer.msg('真实名不能为空！');
+                flag = false;
+                return;
+            }
+            if (baseName == null || baseName == '') {
+                layer.msg('基地名不能为空！');
+                flag = false;
+                return;
+            }
+
+            if (identity_id == null || identity_id == '') {
+                layer.msg('身份类别不能为空！');
+                flag = false;
+                return;
+            }
+            if (grade == null || grade == '' || grade== 'undefined') {
+                grade = 0;
+            }
+            if (trainTime == null || trainTime == '' || trainTime=='undefined') {
+                trainTime = 0;
+            }
+            loginNames.push(loginName);
+            userNums.push(userNum)
+            real_names.push(real_name);
+            user_pwds.push(user_pwd);
+            baseNames.push(baseName);
+            roomNames.push(roomName);
+            identity_ids.push(identity_id);
+            grades.push(grade);
+            trainTimes.push(trainTime);
+        });
+        if (!flag) {
+            return;
+        }
+        param.loginNames = loginNames;
+        param.userNums = userNums;
+        param.real_names = real_names;
+        param.user_pwds = user_pwds;
+        param.baseNames = baseNames;
+        param.roomNames = roomNames;
+        param.identity_ids = identity_ids;
+        param.grades = grades;
+        param.trainTimes = trainTimes;
+        $.ajax({
+            type: "POST",
+            url: '/users/batchSave',
+            data: param,
+            traditional: true,
+            datatType: 'json',
+            success: function (data) {
+                if (data == "success") {
+                    layer.msg('保存成功');
+                    $('#userItemModal').modal('hide');
+                } else if(data=="fail")  {
+                    layer.msg('保存失败');
+                }else {
+                    layer.msg(data+"人员登录名重复，请修改登录名");
+                }
+            }
+        });
+    }
+
+
+
+    function isContains(arr, obj) {
+        //while
+        var i = arr.length;
+        while(i--) {
+            if(arr[i] === obj) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    //弹出选择角色的框
+    function allotRole(){
+        var id = $(".checkchild:checked").val();
+        if ($(".checkchild:checked").length < 1)
+        {
+            layer.msg('请选择一条数据');
+            return;
+        }
+        if ($(".checkchild:checked").length > 1)
+        {
+            layer.msg('一次只能修改一条数据');
+            return;
+        }
+        $.ajax({
+            async:false,
+            type : "POST",
+            data:{uid:id},
+            url: 'roles/rolesWithSelected',
+            dataType:'json',
+            success: function(data){
+                $("#boxRoleForm").empty();
+                var htm = "<input type='hidden' name='uid' value='"+id+"'>";
+                for(var i=0;i<data.length;i++){
+                    htm += "<div class='checkbox'><label><input type='checkbox' name='rids' value='"+data[i].roleId+"'";
+                    if(data[i].selected==1){
+                        htm += " checked='checked'";
+                    }
+                    htm +="/>"+data[i].roleName+"</label></div>";
+                }
+                $("#boxRoleForm").append(htm);
+            }
+        });
+
+        $('#selectRole').modal();
+    }
+
+    //保存角色的选择
+    function saveUserRoles() {
+        $.ajax({
+            cache: true,
+            type: "POST",
+            url:'users/saveUserRoles',
+            data:$('#boxRoleForm').serialize(),// 你的formid
+            async: false,
+            success: function(data) {
+                if(data=="success"){
+                    layer.msg('保存成功');
+                    $('#selectRole').modal('hide');
+                }else{
+                    layer.msg('保存失败');
+                    $('#selectRole').modal('hide');
+                }
+            }
+        })
+    }
+
+
+    //添加用户
+    function addUser() {
+        var loginName = $("#loginName").val();
+        var userPwd = $("#userPwd").val();
+        var baseName = $("#baseName").val();
+        var roomName = $("#roomName").val();
+        if(loginName == "" || loginName == undefined || loginName == null){
+            return layer.msg('用户名不能为空', function(){
+            });
+        }
+        if(userPwd.length<6||userPwd.length>=16){
+            return layer.msg('密码长度为6-16', function(){
+            });
+        }
+        if(baseName == "" || baseName == undefined || baseName == null){
+            return layer.msg('基地不能为空', function(){
+            });
+        }
+        if(roomName == "" || roomName == undefined || roomName == null){
+            return layer.msg('科室不能为空', function(){
+            });
+        }
+
+        $.ajax({
+            cache: true,
+            type: "POST",
+            url:'users/add',
+            data:$('#userForm').serialize(),// 你的formid
+            async: false,
+            success: function(data) {
+                if(data=="success"){
+                    layer.msg('保存成功');
+                    table.ajax.reload();
+                    $('#addUser').modal('hide');
+                }else if(data="error"){
+                    layer.msg('该用户已存在');
+                    $('#addUser').modal('hide');
+                }else{
+                    layer.msg('保存失败');
+                    $('#addUser').modal('hide');
+                }
+            }
+        });
+    }
+
+    function delByID() {
+        var id = $(".checkchild:checked").val();
+        if ($(".checkchild:checked").length < 1)
+        {
+            layer.msg('请选择一条数据');
+            return;
+        }
+        if ($(".checkchild:checked").length > 1)
+        {
+            layer.msg('一次只能修改一条数据');
+            return;
+        }
+        layer.confirm('您确定要删除该用户吗？', {
+            btn: ['确认','取消'] //按钮
+        }, function(){
+            $.ajax({
+                cache: true,
+                type: "POST",
+                url:'users/delete',
+                data:{id:id},
+                async: false,
+                success: function(data) {
+                    if(data=="success"){
+                        layer.msg('删除成功');
+                        table.ajax.reload();
+                    }else{
+                        layer.msg('删除失败');
+                    }
+                }
+            });
+        });
+
+
+
+    }
+</script>
+<#include "/common/footer.html"/>

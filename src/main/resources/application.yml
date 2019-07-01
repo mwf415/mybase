@@ -1,0 +1,9 @@
+mybatis-plus:
+  global-config:
+    db-config:
+      capital-mode: true
+  configuration:
+    log-impl: org.apache.ibatis.logging.stdout.StdOutImpl #数据库大写下划线转换
+
+
+
